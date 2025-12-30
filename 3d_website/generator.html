@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Generator • Dual Text Illusion</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./css/styles.css" />
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <header class="border-b border-slate-200 bg-white">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <a href="./index.html" class="font-semibold tracking-tight">3D Showcase</a>
+      <nav class="flex gap-4 text-sm">
+        <a class="hover:underline" href="./products.html">Products</a>
+        <a class="hover:underline" href="./generator.html">Generator</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-10">
+    <div class="grid lg:grid-cols-5 gap-6">
+      <section class="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h1 class="text-xl font-bold tracking-tight">Dual Text Illusion Generator</h1>
+        <p class="text-sm text-slate-600 mt-1">MVP: Words must be the same length. Output includes STL and GLB.</p>
+
+        <div id="genError" class="hidden mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"></div>
+
+        <form class="mt-5 space-y-4" onsubmit="return false;">
+          <div class="grid grid-cols-2 gap-3">
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">First word</span>
+              <input id="wordA" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="HELLO" />
+            </label>
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">Second word</span>
+              <input id="wordB" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="WORLD" />
+            </label>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">Font</span>
+              <select id="font" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <option value="helvetiker">Helvetiker (Three.js)</option>
+                <option value="optimer">Optimer (Three.js)</option>
+                <option value="gentilis">Gentilis (Three.js)</option>
+              </select>
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">Font variant</span>
+              <select id="fontVariant" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"></select>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">Base padding</span>
+              <input id="padding" type="number" step="0.1" value="2.5" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <span class="text-xs text-slate-500">Offsets the second word to reduce overlap.</span>
+            </label>
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">Fillet %</span>
+              <input id="fillet" type="number" step="1" min="0" max="100" value="25" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <span class="text-xs text-slate-500">Bevel approximation.</span>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">Font size</span>
+              <input id="fontSize" type="number" step="1" value="28" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            </label>
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">Extrude height</span>
+              <input id="extrudeHeight" type="number" step="0.5" value="10" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            </label>
+          </div>
+
+          <div class="flex flex-wrap gap-2 pt-2">
+            <button id="generateBtn" class="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-medium hover:bg-slate-800">Generate</button>
+            <button id="downloadStl" type="button" disabled class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium disabled:opacity-50">Download STL</button>
+            <button id="downloadGlb" type="button" disabled class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium disabled:opacity-50">Download GLB</button>
+          </div>
+        </form>
+
+        <div class="mt-6 border-t border-slate-200 pt-4 text-xs text-slate-600 space-y-1">
+          <p><span class="font-medium">Tip:</span> View from front for Word A; rotate 90° to see Word B.</p>
+          <p><span class="font-medium">Note:</span> MVP merges meshes without true boolean union; slicers typically union overlaps.</p>
+        </div>
+      </section>
+
+      <section class="lg:col-span-3 space-y-6">
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 class="font-semibold">GLB Preview (&lt;model-viewer&gt;)</h2>
+          <p class="text-sm text-slate-600 mt-1">Click Generate to populate the preview.</p>
+          <div class="mt-4">
+            <model-viewer id="modelViewer" src="" camera-controls auto-rotate="" exposure="1.0" shadow-intensity="0.8"></model-viewer>
+          </div>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 class="font-semibold">Live Scene (Three.js)</h2>
+          <p class="text-sm text-slate-600 mt-1">Orbit controls for inspection. This is the same geometry that exports.</p>
+          <div class="mt-4">
+            <canvas id="threePreview" class="w-full h-[420px] rounded-xl bg-slate-950"></canvas>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="border-t border-slate-200 bg-white">
+    <div class="max-w-6xl mx-auto px-4 py-6 text-sm text-slate-600">© <span id="year"></span> 3D Showcase</div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+  <script type="module" src="./js/generator.js"></script>
+</body>
+</html>
