@@ -1,0 +1,27 @@
+{
+  "products": [
+    {
+      "id": "dual-text-illusion",
+      "name": "Dual Text Illusion (Custom)",
+      "description": "A 3D printable dual-text illusion generated from two words. Viewable from two angles.",
+      "images": [
+        "assets/images/placeholder-1.jpg",
+        "assets/images/placeholder-2.jpg"
+      ],
+      "glb": null,
+      "whatsapp": "https://wa.me/000000000000?text=Hello%20I%20want%20a%20Dual%20Text%20Illusion",
+      "generatorLink": "generator.html?wordA=HELLO&wordB=WORLD"
+    },
+    {
+      "id": "sample-product",
+      "name": "Sample Product",
+      "description": "Replace this with your real product. Add unlimited images and an optional GLB preview.",
+      "images": [
+        "assets/images/placeholder-1.jpg"
+      ],
+      "glb": "assets/models/sample.glb",
+      "whatsapp": "https://wa.me/000000000000?text=Hello%20I%20want%20the%20Sample%20Product",
+      "generatorLink": null
+    }
+  ]
+}
