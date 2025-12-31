@@ -2,15 +2,13 @@
 // Goal: produce a clean "dual-text illusion" style solid from two words, previewable as GLB and downloadable as STL.
 // This is implemented from scratch using Three.js primitives (no proprietary generators).
 
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
-import { FontLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/FontLoader.js';
-import { TextGeometry } from 'https://unpkg.com/three@0.160.0/examples/jsm/geometries/TextGeometry.js';
-import { BufferGeometryUtils } from 'https://unpkg.com/three@0.160.0/examples/jsm/utils/BufferGeometryUtils.js';
-import { GLTFExporter } from 'https://unpkg.com/three@0.160.0/examples/jsm/exporters/GLTFExporter.js';
-
-// STL exporter isn't in core; it's part of examples and is license-safe (Three.js examples are MIT).
-import { STLExporter } from 'https://unpkg.com/three@0.160.0/examples/jsm/exporters/STLExporter.js';
+import * as THREE from 'https://unpkg.com/three@0.158.0/build/three.module.js';
+import { OrbitControls } from 'https://unpkg.com/three@0.158.0/examples/jsm/controls/OrbitControls.js';
+import { FontLoader } from 'https://unpkg.com/three@0.158.0/examples/jsm/loaders/FontLoader.js';
+import { TextGeometry } from 'https://unpkg.com/three@0.158.0/examples/jsm/geometries/TextGeometry.js';
+import { BufferGeometryUtils } from 'https://unpkg.com/three@0.158.0/examples/jsm/utils/BufferGeometryUtils.js';
+import { GLTFExporter } from 'https://unpkg.com/three@0.158.0/examples/jsm/exporters/GLTFExporter.js';
+import { STLExporter } from 'https://unpkg.com/three@0.158.0/examples/jsm/exporters/STLExporter.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -55,16 +53,12 @@ async function buildDualTextGeometry({ wordA, wordB, fontUrl, size, height, padd
   const geoA = new TextGeometry(wordA, tOpts);
   const geoB = new TextGeometry(wordB, tOpts);
 
-  geoA.computeBoundingBox();
-  geoB.computeBoundingBox();
-
-  // Center them around origin and add padding by translating a bit
+  // Center each geometry around origin (TextGeometry extrudes in +Z by default)
   const centerGeometry = (g) => {
     g.computeBoundingBox();
     const bb = g.boundingBox;
     const cx = (bb.max.x + bb.min.x) / 2;
     const cy = (bb.max.y + bb.min.y) / 2;
-    // Z is [0, depth]
     g.translate(-cx, -cy, -height / 2);
   };
 
@@ -75,23 +69,12 @@ async function buildDualTextGeometry({ wordA, wordB, fontUrl, size, height, padd
   // When viewed from front: A reads. From side: B reads.
   geoB.rotateY(Math.PI / 2);
 
-  // Slight offset to reduce z-fighting / coincident faces; padding influences separation.
-  geoA.translate(0, 0, 0);
+  // Padding offsets the rotated text so the merge is less degenerate.
   geoB.translate(padding, 0, 0);
 
-  // Merge (boolean-like approximation): just merge buffer geometry.
-  // For MVP: accuracy over perfection; downstream slicers will union overlapping volumes.
-  const merged = BufferGeometryUtils.mergeGeometries(
-    [new THREE.BufferGeometry().fromGeometry?.(geoA), new THREE.BufferGeometry().fromGeometry?.(geoB)].map((g, i) => {
-      // Compatibility: TextGeometry is already BufferGeometry in newer Three but keep safe.
-      // If it already is BufferGeometry, keep it.
-      const gg = (geoA.isBufferGeometry ? (i === 0 ? geoA : geoB) : g);
-      gg.computeVertexNormals();
-      return gg;
-    }),
-    true
-  );
-
+  // Merge (boolean-like approximation): merge buffer geometries.
+  // For MVP: slicers typically union overlapping volumes.
+  const merged = BufferGeometryUtils.mergeGeometries([geoA, geoB], true);
   merged.computeBoundingBox();
   merged.computeVertexNormals();
 
@@ -126,6 +109,7 @@ function makePreviewScene(canvas) {
 
   const hemi = new THREE.HemisphereLight(0xffffff, 0x223355, 1.0);
   scene.add(hemi);
+
   const dir = new THREE.DirectionalLight(0xffffff, 1.1);
   dir.position.set(200, 300, 200);
   scene.add(dir);
@@ -137,16 +121,15 @@ function makePreviewScene(canvas) {
 
   let mesh = null;
 
-  const material = new THREE.MeshStandardMaterial({ color: 0xE2E8F0, roughness: 0.35, metalness: 0.05 });
+  const material = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.35, metalness: 0.05 });
 
   function setGeometry(geometry) {
     if (mesh) {
       mesh.geometry.dispose();
       scene.remove(mesh);
     }
+
     mesh = new THREE.Mesh(geometry, material);
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
 
     geometry.computeBoundingBox();
     const bb = geometry.boundingBox;
@@ -231,21 +214,25 @@ async function main() {
   let latestMesh = null;
   let latestGlbBlobUrl = null;
 
-  const fontMap = {
-    // Note: helvetiker comes from Three.js examples (MIT). This keeps the MVP license-safe.
-    helvetiker: 'https://unpkg.com/three@0.160.0/examples/fonts/helvetiker_regular.typeface.json',
-    optimer: 'https://unpkg.com/three@0.160.0/examples/fonts/optimer_regular.typeface.json',
-    gentilis: 'https://unpkg.com/three@0.160.0/examples/fonts/gentilis_regular.typeface.json'
-  };
+  // GitHub Pages friendly: local repo font path (relative URL).
+  // NOTE: you must add this file at: ./fonts/helvetiker_regular.typeface.json
+  const fontUrl = 'fonts/helvetiker_regular.typeface.json';
 
   function updateFontWeightOptions() {
-    // For MVP, keep a single variant per font. The UI includes variant selector for future expansion.
     const variant = $('fontVariant');
+    if (!variant) return;
     variant.innerHTML = '';
     variant.appendChild(new Option('Regular', 'regular'));
   }
 
-  $('font').addEventListener('change', updateFontWeightOptions);
+  // Keep existing UI, but only one repo-provided font is used in the MVP.
+  const fontSelect = $('font');
+  if (fontSelect) {
+    fontSelect.innerHTML = '';
+    fontSelect.appendChild(new Option('Helvetiker', 'helvetiker'));
+    fontSelect.value = 'helvetiker';
+    fontSelect.addEventListener('change', updateFontWeightOptions);
+  }
   updateFontWeightOptions();
 
   $('generateBtn').addEventListener('click', async () => {
@@ -256,9 +243,6 @@ async function main() {
 
     const err = validateInputs(wordA, wordB);
     if (err) return setError(err);
-
-    const fontKey = $('font').value;
-    const fontUrl = fontMap[fontKey] || fontMap.helvetiker;
 
     const size = Number($('fontSize').value);
     const height = Number($('extrudeHeight').value);
@@ -271,20 +255,24 @@ async function main() {
     try {
       const geometry = await buildDualTextGeometry({ wordA, wordB, fontUrl, size, height, padding, filletPct });
 
-      // Ensure geometry is indexed and merged cleanly.
-      const material = new THREE.MeshStandardMaterial({ color: 0xE2E8F0, roughness: 0.35, metalness: 0.05 });
+      const material = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.35, metalness: 0.05 });
       latestMesh = new THREE.Mesh(geometry, material);
 
+      // 1) Update live Three.js canvas
       preview.setGeometry(geometry);
 
+      // 2) Enable downloads
       $('downloadStl').disabled = false;
       $('downloadGlb').disabled = false;
 
-      // Update <model-viewer> preview by exporting GLB
+      // 3) Update model-viewer (guarded)
+      const viewer = document.querySelector('model-viewer');
+      if (!viewer) return;
+
       if (latestGlbBlobUrl) URL.revokeObjectURL(latestGlbBlobUrl);
       const glbBlob = await exportGLB(latestMesh);
       latestGlbBlobUrl = URL.createObjectURL(glbBlob);
-      $('modelViewer').src = latestGlbBlobUrl;
+      viewer.src = latestGlbBlobUrl;
     } catch (e) {
       console.error(e);
       setError(e?.message || String(e));
